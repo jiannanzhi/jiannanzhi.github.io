@@ -1,0 +1,26 @@
+{
+  "id": "/READING/",
+  "name": "\u9605\u8bfb\u9636\u68af",
+  "short_name": "\u9605\u8bfb\u9636\u68af",
+  "description": "\u9605\u8bfb\u9636\u68af - \u6c89\u6d78\u5f0f\u9605\u8bfb\u4e0e\u4e92\u52a8",
+  "start_url": "/READING/",
+  "scope": "/READING/",
+  "display": "standalone",
+  "background_color": "#F6F2EA",
+  "theme_color": "#F6F2EA",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icons/icon-192.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
