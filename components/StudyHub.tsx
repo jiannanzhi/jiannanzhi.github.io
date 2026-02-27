@@ -583,7 +583,8 @@ const StudyHub: React.FC<StudyHubProps> = ({
       if (!stored) continue;
 
       const highlightMap = stored.readerState?.highlightsByChapter;
-      if (!highlightMap) continue;
+      const aiUnderlineMap = stored.readerState?.aiUnderlinesByChapter;
+      if (!highlightMap && !aiUnderlineMap) continue;
 
       const chapters = stored.chapters || [];
       const normalizedChapters = chapters.map((chapter) => normalizeReaderLayoutText(chapter.content || ''));
@@ -592,38 +593,80 @@ const StudyHub: React.FC<StudyHubProps> = ({
       );
       const items: HighlightSnippet[] = [];
 
-      Object.entries(highlightMap).forEach(([key, ranges]) => {
-        if (!Array.isArray(ranges) || ranges.length === 0) return;
+      // User manual highlights
+      if (highlightMap) {
+        Object.entries(highlightMap).forEach(([key, ranges]) => {
+          if (!Array.isArray(ranges) || ranges.length === 0) return;
 
-        if (key === 'full') {
-          if (!fullNormalizedText) return;
+          if (key === 'full') {
+            if (!fullNormalizedText) return;
+            items.push(...extractHighlightSnippets({
+              bookId: book.id,
+              chapterTitle: '全书',
+              chapterIndex: null,
+              text: fullNormalizedText,
+              ranges: ranges as ReaderHighlightRange[],
+            }));
+            return;
+          }
+
+          if (!key.startsWith('chapter-')) return;
+          const indexRaw = Number(key.slice('chapter-'.length));
+          if (!Number.isFinite(indexRaw)) return;
+          const chapterIndex = Math.max(0, Math.floor(indexRaw));
+          if (chapterIndex >= normalizedChapters.length) return;
+          const chapterText = normalizedChapters[chapterIndex] || '';
+          if (!chapterText) return;
+          const chapterTitle = chapters[chapterIndex]?.title || `第${chapterIndex + 1}章`;
+
           items.push(...extractHighlightSnippets({
             bookId: book.id,
-            chapterTitle: '全书',
-            chapterIndex: null,
-            text: fullNormalizedText,
+            chapterTitle,
+            chapterIndex,
+            text: chapterText,
             ranges: ranges as ReaderHighlightRange[],
           }));
-          return;
-        }
+        });
+      }
 
-        if (!key.startsWith('chapter-')) return;
-        const indexRaw = Number(key.slice('chapter-'.length));
-        if (!Number.isFinite(indexRaw)) return;
-        const chapterIndex = Math.max(0, Math.floor(indexRaw));
-        if (chapterIndex >= normalizedChapters.length) return;
-        const chapterText = normalizedChapters[chapterIndex] || '';
-        if (!chapterText) return;
-        const chapterTitle = chapters[chapterIndex]?.title || `第${chapterIndex + 1}章`;
+      // AI proactive underlines (convert to highlight format with a distinct color)
+      const AI_UNDERLINE_COLOR = '#93C5FD';
+      if (aiUnderlineMap) {
+        Object.entries(aiUnderlineMap).forEach(([key, ranges]) => {
+          if (!Array.isArray(ranges) || ranges.length === 0) return;
 
-        items.push(...extractHighlightSnippets({
-          bookId: book.id,
-          chapterTitle,
-          chapterIndex,
-          text: chapterText,
-          ranges: ranges as ReaderHighlightRange[],
-        }));
-      });
+          const asHighlightRanges = ranges.map((r) => ({ start: r.start, end: r.end, color: AI_UNDERLINE_COLOR }));
+
+          if (key === 'full') {
+            if (!fullNormalizedText) return;
+            items.push(...extractHighlightSnippets({
+              bookId: book.id,
+              chapterTitle: '全书（AI高亮）',
+              chapterIndex: null,
+              text: fullNormalizedText,
+              ranges: asHighlightRanges as ReaderHighlightRange[],
+            }));
+            return;
+          }
+
+          if (!key.startsWith('chapter-')) return;
+          const indexRaw = Number(key.slice('chapter-'.length));
+          if (!Number.isFinite(indexRaw)) return;
+          const chapterIndex = Math.max(0, Math.floor(indexRaw));
+          if (chapterIndex >= normalizedChapters.length) return;
+          const chapterText = normalizedChapters[chapterIndex] || '';
+          if (!chapterText) return;
+          const chapterTitle = (chapters[chapterIndex]?.title || `第${chapterIndex + 1}章`) + '（AI高亮）';
+
+          items.push(...extractHighlightSnippets({
+            bookId: book.id,
+            chapterTitle,
+            chapterIndex,
+            text: chapterText,
+            ranges: asHighlightRanges as ReaderHighlightRange[],
+          }));
+        });
+      }
 
       if (items.length === 0) continue;
       items.sort((a, b) => {
