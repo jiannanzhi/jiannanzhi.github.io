@@ -584,8 +584,19 @@ const StudyHub: React.FC<StudyHubProps> = ({
       if (!stored) continue;
 
       const highlightMap = stored.readerState?.highlightsByChapter;
-      const aiUnderlineMap = stored.readerState?.aiUnderlinesByChapter;
-      if (!highlightMap && !aiUnderlineMap) continue;
+
+      // AI underlines are stored in chat runtime buckets, not in bookContent readerState
+      const chatStore = readChatStore();
+      let aiUnderlineMapFromStore: Record<string, import('../types').ReaderAiUnderlineRange[]> | undefined;
+      for (const bucket of Object.values(chatStore)) {
+        const byBook = bucket.readingAiUnderlinesByBookId || {};
+        if (byBook[book.id] && Object.keys(byBook[book.id]).length > 0) {
+          aiUnderlineMapFromStore = byBook[book.id];
+          break;
+        }
+      }
+
+      if (!highlightMap && !aiUnderlineMapFromStore) continue;
 
       const chapters = stored.chapters || [];
       const normalizedChapters = chapters.map((chapter) => normalizeReaderLayoutText(chapter.content || ''));
@@ -632,18 +643,8 @@ const StudyHub: React.FC<StudyHubProps> = ({
 
       // AI proactive underlines (from chat store, convert to highlight format with a distinct color)
       const AI_UNDERLINE_COLOR = '#93C5FD';
-      const chatStore = readChatStore();
-      let aiUnderlineMapFromStore: Record<string, import('../types').ReaderAiUnderlineRange[]> | undefined;
-      for (const bucket of Object.values(chatStore)) {
-        const byBook = bucket.readingAiUnderlinesByBookId || {};
-        if (byBook[book.id]) {
-          aiUnderlineMapFromStore = byBook[book.id];
-          break;
-        }
-      }
-      const aiUnderlineMapFinal = aiUnderlineMapFromStore || aiUnderlineMap;
-      if (aiUnderlineMapFinal) {
-        Object.entries(aiUnderlineMapFinal).forEach(([key, ranges]) => {
+      if (aiUnderlineMapFromStore) {
+        Object.entries(aiUnderlineMapFromStore).forEach(([key, ranges]) => {
           if (!Array.isArray(ranges) || ranges.length === 0) return;
 
           const asHighlightRanges = ranges.map((r) => ({ start: r.start, end: r.end, color: AI_UNDERLINE_COLOR }));
