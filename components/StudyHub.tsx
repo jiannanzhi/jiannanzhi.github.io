@@ -26,6 +26,7 @@ import {
 } from '../utils/studyHubAiEngine';
 import { callAiModel, sanitizeTextForAiPrompt } from '../utils/readerAiEngine';
 import { getBookContent } from '../utils/bookContentStorage';
+import { readChatStore } from '../utils/readerChatRuntime';
 import { estimateRagSafeOffset, retrieveRelevantChunks, isEmbedModelLoaded } from '../utils/ragEngine';
 import { DEFAULT_PAPER_CSS_PRESETS, DEFAULT_PAPER_CSS_PRESET_ID, normalizeLegacyPaperCss } from '../utils/paperCssPresets';
 
@@ -629,10 +630,20 @@ const StudyHub: React.FC<StudyHubProps> = ({
         });
       }
 
-      // AI proactive underlines (convert to highlight format with a distinct color)
+      // AI proactive underlines (from chat store, convert to highlight format with a distinct color)
       const AI_UNDERLINE_COLOR = '#93C5FD';
-      if (aiUnderlineMap) {
-        Object.entries(aiUnderlineMap).forEach(([key, ranges]) => {
+      const chatStore = readChatStore();
+      let aiUnderlineMapFromStore: Record<string, import('../types').ReaderAiUnderlineRange[]> | undefined;
+      for (const bucket of Object.values(chatStore)) {
+        const byBook = bucket.readingAiUnderlinesByBookId || {};
+        if (byBook[book.id]) {
+          aiUnderlineMapFromStore = byBook[book.id];
+          break;
+        }
+      }
+      const aiUnderlineMapFinal = aiUnderlineMapFromStore || aiUnderlineMap;
+      if (aiUnderlineMapFinal) {
+        Object.entries(aiUnderlineMapFinal).forEach(([key, ranges]) => {
           if (!Array.isArray(ranges) || ranges.length === 0) return;
 
           const asHighlightRanges = ranges.map((r) => ({ start: r.start, end: r.end, color: AI_UNDERLINE_COLOR }));
@@ -3202,55 +3213,55 @@ const StudyHub: React.FC<StudyHubProps> = ({
           </div>
         </div>
 
-        {/* Inline Highlights */}
-        {showHighlights && (
-          <div className="px-6 py-3 space-y-4">
-            {highlightLoading && (
-              <div className="flex items-center justify-center gap-2 text-sm text-slate-400 py-10">
-                <Loader2 size={16} className="animate-spin" /> 读取高亮中
-              </div>
-            )}
-
-            {!highlightLoading && highlightGroups.length === 0 && (
-              <div className="text-center text-sm text-slate-400 py-10">暂无高亮</div>
-            )}
-
-            {!highlightLoading && highlightGroups.map((group) => (
-              <div key={group.bookId} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm font-semibold ${headingClass}`}>{group.title}</span>
-                  <span className={`text-xs ${subTextClass}`}>{group.items.length} 条</span>
-                </div>
-                <div className="space-y-2">
-                  {group.items.map((item) => (
-                    <div
-                      key={item.id}
-                      className={`rounded-xl p-3 border ${cardClass} ${isDarkMode ? 'border-slate-700/40' : 'border-amber-200/50'}`}
-                    >
-                      <div className={`flex items-center gap-2 text-[10px] ${subTextClass}`}>
-                        <span
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: item.color || DEFAULT_HIGHLIGHT_COLOR }}
-                        />
-                        <span>{item.chapterTitle}</span>
-                      </div>
-                      <p
-                        className={`text-sm mt-1 ${headingClass}`}
-                        style={{ fontFamily: '"Noto Serif SC", "Source Han Serif CN", serif' }}
-                      >
-                        {item.text}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 no-scrollbar">
           <div className="pb-24 space-y-3 animate-fade-in">
+
+            {/* Inline Highlights */}
+            {showHighlights && (
+              <div className="py-3 space-y-4">
+                {highlightLoading && (
+                  <div className="flex items-center justify-center gap-2 text-sm text-slate-400 py-10">
+                    <Loader2 size={16} className="animate-spin" /> 读取高亮中
+                  </div>
+                )}
+
+                {!highlightLoading && highlightGroups.length === 0 && (
+                  <div className="text-center text-sm text-slate-400 py-10">暂无高亮</div>
+                )}
+
+                {!highlightLoading && highlightGroups.map((group) => (
+                  <div key={group.bookId} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className={`text-sm font-semibold ${headingClass}`}>{group.title}</span>
+                      <span className={`text-xs ${subTextClass}`}>{group.items.length} 条</span>
+                    </div>
+                    <div className="space-y-2">
+                      {group.items.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`rounded-xl p-3 border ${cardClass} ${isDarkMode ? 'border-slate-700/40' : 'border-amber-200/50'}`}
+                        >
+                          <div className={`flex items-center gap-2 text-[10px] ${subTextClass}`}>
+                            <span
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: item.color || DEFAULT_HIGHLIGHT_COLOR }}
+                            />
+                            <span>{item.chapterTitle}</span>
+                          </div>
+                          <p
+                            className={`text-sm mt-1 ${headingClass}`}
+                            style={{ fontFamily: '"Noto Serif SC", "Source Han Serif CN", serif' }}
+                          >
+                            {item.text}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {activeNotebook.notes.length === 0 && (
               <div className="text-center py-12 text-slate-400">
                 <NotebookPen size={40} className="mx-auto mb-2 opacity-40" />
