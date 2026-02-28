@@ -21,6 +21,7 @@ export const TTS_PROVIDER_DEFS: {
   { key: 'OPENAI_TTS', label: 'OpenAI TTS', defaultEndpoint: 'https://api.openai.com/v1', defaultModel: 'tts-1' },
   { key: 'MINIMAX_T2A', label: 'MiniMax T2A', defaultEndpoint: 'https://minimax-tts-proxy.sh-vivian88.workers.dev/v1', defaultModel: 'speech-2.6-hd' },
   { key: 'ELEVENLABS', label: 'ElevenLabs', defaultEndpoint: 'https://api.elevenlabs.io', defaultModel: 'eleven_multilingual_v2' },
+  { key: 'AZURE_TTS', label: 'Azure TTS', defaultEndpoint: '', defaultModel: '' },
   { key: 'CUSTOM_TTS', label: '自定义 TTS', defaultEndpoint: '', defaultModel: '' },
 ];
 
@@ -58,9 +59,9 @@ export function validateTtsConfig(config: TtsConfig): string | null {
   const model = (config.model || '').trim();
   const voiceId = (config.voiceId || '').trim();
   if (!apiKey) return '请先设置 TTS API Key';
-  if (!model) return '请先设置 TTS 模型';
+  if (config.provider !== 'AZURE_TTS' && !model) return '请先设置 TTS 模型';
   if (!voiceId) return config.provider === 'MINIMAX_T2A' ? '请先设置 Voice ID' : '请先设置语音 ID';
-  if (config.provider !== 'MINIMAX_T2A' && !(config.endpoint || '').trim()) return '请先设置 TTS API 地址';
+  if (config.provider !== 'MINIMAX_T2A' && config.provider !== 'AZURE_TTS' && !(config.endpoint || '').trim()) return '请先设置 TTS API 地址';
   // China region requires GroupId; international does not
   if (config.provider === 'MINIMAX_T2A' && config.minimaxRegion !== 'intl' && !(config.groupId || '').trim()) {
     return '请先设置 MiniMax Group ID（国内版必填）';
@@ -305,6 +306,51 @@ async function callCustomTts(text: string, config: TtsConfig, signal?: AbortSign
   return response.blob();
 }
 
+async function callAzureTts(text: string, config: TtsConfig, signal?: AbortSignal): Promise<Blob> {
+  const region = (config.azureRegion || 'westus3').trim();
+  const apiKey = config.apiKey.trim();
+  const voiceId = config.voiceId.trim();
+  
+  // Speed conversion: READING uses 0.5-2.0, Azure uses percentage (-50% to +100%)
+  const speedPercent = Math.round((config.speed - 1) * 100);
+  const speedStr = speedPercent >= 0 ? `+${speedPercent}%` : `${speedPercent}%`;
+  
+  // Extract locale from voiceId (e.g., zh-CN-XiaoxiaoNeural -> zh-CN)
+  const localeParts = voiceId.split('-');
+  const locale = localeParts.length >= 2 ? `${localeParts[0]}-${localeParts[1]}` : 'zh-CN';
+  
+  // Escape XML special characters
+  const escapedText = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+  
+  const ssml = `<speak version='1.0' xml:lang='${locale}'>
+  <voice name='${voiceId}'>
+    <prosody rate='${speedStr}'>
+      ${escapedText}
+    </prosody>
+  </voice>
+</speak>`;
+  
+  const url = `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Ocp-Apim-Subscription-Key': apiKey,
+      'Content-Type': 'application/ssml+xml',
+      'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3',
+    },
+    body: ssml,
+    signal,
+  });
+  
+  if (!response.ok) throw new Error(await parseResponseError(response, 'Azure TTS 请求失败'));
+  return response.blob();
+}
+
 // ─── Main entry ───
 
 export async function callTtsApi(text: string, config: TtsConfig, signal?: AbortSignal): Promise<Blob> {
@@ -313,6 +359,7 @@ export async function callTtsApi(text: string, config: TtsConfig, signal?: Abort
     case 'OPENAI_TTS': return callOpenAiTts(text, config, signal);
     case 'MINIMAX_T2A': return callMiniMaxTts(text, config, signal);
     case 'ELEVENLABS': return callElevenLabsTts(text, config, signal);
+    case 'AZURE_TTS': return callAzureTts(text, config, signal);
     case 'CUSTOM_TTS': return callCustomTts(text, config, signal);
     default: throw new Error(`未知 TTS 服务商: ${config.provider}`);
   }

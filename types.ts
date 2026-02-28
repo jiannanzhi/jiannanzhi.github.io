@@ -234,7 +234,7 @@ export type RagApiConfigResolver = (presetId: string | undefined) => ApiConfig |
 
 // ─── TTS (Text-to-Speech) ───
 
-export type TtsProvider = 'OPENAI_TTS' | 'MINIMAX_T2A' | 'ELEVENLABS' | 'CUSTOM_TTS';
+export type TtsProvider = 'OPENAI_TTS' | 'MINIMAX_T2A' | 'ELEVENLABS' | 'CUSTOM_TTS' | 'AZURE_TTS';
 
 export type MiniMaxRegion = 'cn' | 'intl';
 
@@ -248,6 +248,7 @@ export interface TtsConfig {
   chunkSize: number;
   groupId?: string;
   minimaxRegion?: MiniMaxRegion;
+  azureRegion?: string;
   language?: string;
 }
 

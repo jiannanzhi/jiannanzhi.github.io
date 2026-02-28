@@ -167,6 +167,7 @@ const TTS_PROVIDERS: { key: TtsProvider; label: string; icon: any }[] = [
   { key: 'OPENAI_TTS', label: 'OpenAI TTS', icon: Volume2 },
   { key: 'MINIMAX_T2A', label: 'MiniMax T2A', icon: Volume2 },
   { key: 'ELEVENLABS', label: 'ElevenLabs', icon: Volume2 },
+  { key: 'AZURE_TTS', label: 'Azure TTS', icon: Volume2 },
   { key: 'CUSTOM_TTS', label: '自定义 TTS', icon: Server },
 ];
 
@@ -351,6 +352,19 @@ const TtsSettings: React.FC<TtsSettingsProps> = ({ config, setConfig, presets, s
         if (Array.isArray(data)) {
           models = data.map((m: any) => m.model_id);
         }
+      } else if (config.provider === 'AZURE_TTS') {
+        const region = (config.azureRegion || 'westus3').trim();
+        const url = `https://${region}.tts.speech.microsoft.com/cognitiveservices/voices/list`;
+        const response = await fetch(url, {
+          headers: {
+            'Ocp-Apim-Subscription-Key': config.apiKey.trim(),
+          },
+        });
+        if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+        const voices = await response.json();
+        if (Array.isArray(voices)) {
+          models = voices.map((v: any) => v.ShortName);
+        }
       }
 
       const normalizedModels = Array.from(new Set(models.map(m => m.trim()).filter(Boolean)));
@@ -530,8 +544,24 @@ const TtsSettings: React.FC<TtsSettingsProps> = ({ config, setConfig, presets, s
           </>
         )}
 
-        {/* Endpoint - for non-MiniMax providers */}
-        {!isMiniMax && (
+        {/* Azure TTS: Region Input */}
+        {config.provider === 'AZURE_TTS' && (
+          <div>
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2 block flex items-center gap-2">
+              <Globe size={14} /> Azure Region
+            </label>
+            <input
+              type="text"
+              value={config.azureRegion || ''}
+              onChange={e => setConfig(prev => ({ ...prev, azureRegion: e.target.value }))}
+              placeholder="westus3"
+              className={`w-full h-[42px] px-4 rounded-xl text-sm outline-none ${inputClass}`}
+            />
+          </div>
+        )}
+
+        {/* Endpoint - for non-MiniMax and non-Azure providers */}
+        {!isMiniMax && config.provider !== 'AZURE_TTS' && (
           <div>
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2 block flex items-center gap-2">
               <Globe size={14} /> API 地址 (Endpoint)
@@ -569,11 +599,31 @@ const TtsSettings: React.FC<TtsSettingsProps> = ({ config, setConfig, presets, s
           </div>
         </div>
 
-        {/* Voice ID - for MiniMax show as text input; for OpenAI show dropdown; for others text input */}
+        {/* Voice ID - for MiniMax show as text input; for OpenAI show dropdown; for Azure show dropdown if fetched; for others text input */}
         <div className="z-10 relative">
-          <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2 block flex items-center gap-2">
-            <Volume2 size={14} /> {isMiniMax ? 'Voice ID' : '语音 (Voice)'}
-          </label>
+          <div className="flex items-center justify-between mb-2 ml-1">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+              <Volume2 size={14} /> {isMiniMax ? 'Voice ID' : '语音 (Voice)'}
+            </label>
+            {/* Fetch button for Azure TTS voices */}
+            {config.provider === 'AZURE_TTS' && (
+              <div className="flex items-center gap-2">
+                <div className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                  fetchStatus === 'SUCCESS' ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' :
+                  fetchStatus === 'ERROR' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' :
+                  isFetching ? 'bg-amber-400 animate-pulse' : 'bg-slate-300'
+                }`} />
+                <button
+                  onClick={fetchModels}
+                  disabled={isFetching}
+                  className={`text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 hover:text-rose-400 disabled:opacity-50 ${btnClass}`}
+                >
+                  <RefreshCw size={10} className={isFetching ? 'animate-spin' : ''} />
+                  {isFetching ? '拉取中...' : '拉取语音'}
+                </button>
+              </div>
+            )}
+          </div>
           {isMiniMax ? (
             <input
               type="text"
@@ -582,6 +632,26 @@ const TtsSettings: React.FC<TtsSettingsProps> = ({ config, setConfig, presets, s
               placeholder="ttv-voice-2025112706124025-DDcKFsc8"
               className={`w-full h-[42px] px-4 rounded-xl text-sm outline-none ${inputClass}`}
             />
+          ) : config.provider === 'AZURE_TTS' ? (
+            availableModels.length > 0 ? (
+              <SingleSelectDropdown
+                options={availableModels.map(v => ({ value: v, label: v }))}
+                value={config.voiceId}
+                onChange={val => setConfig(prev => ({ ...prev, voiceId: val }))}
+                placeholder="选择语音"
+                inputClass={inputClass}
+                cardClass={cardClass}
+                isDarkMode={isDarkMode}
+              />
+            ) : (
+              <input
+                type="text"
+                value={config.voiceId}
+                onChange={e => setConfig(prev => ({ ...prev, voiceId: e.target.value }))}
+                placeholder="点击右上角拉取语音列表，或手动输入"
+                className={`w-full h-[42px] px-4 rounded-xl text-sm outline-none ${inputClass}`}
+              />
+            )
           ) : voiceOptions ? (
             <SingleSelectDropdown
               options={voiceOptions}
@@ -603,69 +673,71 @@ const TtsSettings: React.FC<TtsSettingsProps> = ({ config, setConfig, presets, s
           )}
         </div>
 
-        {/* Model Selection */}
-        <div className="z-20 relative">
-          <div className="flex items-center justify-between mb-2 ml-1">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-              <Cpu size={14} /> 模型 (Model)
-            </label>
-            {/* Fetch button - only for non-MiniMax providers (MiniMax has no models API) */}
-            {!isMiniMax && (
-              <div className="flex items-center gap-2">
-                <div className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
-                  fetchStatus === 'SUCCESS' ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' :
-                  fetchStatus === 'ERROR' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' :
-                  isFetching ? 'bg-amber-400 animate-pulse' : 'bg-slate-300'
-                }`} />
-                <button
-                  onClick={fetchModels}
-                  disabled={isFetching}
-                  className={`text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 hover:text-rose-400 disabled:opacity-50 ${btnClass}`}
-                >
-                  <RefreshCw size={10} className={isFetching ? 'animate-spin' : ''} />
-                  {isFetching ? '拉取中...' : '拉取模型'}
-                </button>
-              </div>
-            )}
-          </div>
+        {/* Model Selection - hide for Azure TTS */}
+        {config.provider !== 'AZURE_TTS' && (
+          <div className="z-20 relative">
+            <div className="flex items-center justify-between mb-2 ml-1">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Cpu size={14} /> 模型 (Model)
+              </label>
+              {/* Fetch button - only for non-MiniMax providers (MiniMax has no models API) */}
+              {!isMiniMax && (
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                    fetchStatus === 'SUCCESS' ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' :
+                    fetchStatus === 'ERROR' ? 'bg-red-500 shadow-[0_0_8px_#ef4444]' :
+                    isFetching ? 'bg-amber-400 animate-pulse' : 'bg-slate-300'
+                  }`} />
+                  <button
+                    onClick={fetchModels}
+                    disabled={isFetching}
+                    className={`text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 hover:text-rose-400 disabled:opacity-50 ${btnClass}`}
+                  >
+                    <RefreshCw size={10} className={isFetching ? 'animate-spin' : ''} />
+                    {isFetching ? '拉取中...' : '拉取模型'}
+                  </button>
+                </div>
+              )}
+            </div>
 
-          {isMiniMax ? (
-            /* MiniMax: predefined model list (no models API available) */
-            <SingleSelectDropdown
-              options={MINIMAX_MODELS}
-              value={config.model}
-              onChange={val => setConfig(prev => ({ ...prev, model: val }))}
-              placeholder="选择模型..."
-              inputClass={inputClass}
-              cardClass={cardClass}
-              isDarkMode={isDarkMode}
-            />
-          ) : (
-            <>
+            {isMiniMax ? (
+              /* MiniMax: predefined model list (no models API available) */
               <SingleSelectDropdown
-                options={availableModels.map(m => ({ value: m, label: m }))}
+                options={MINIMAX_MODELS}
                 value={config.model}
                 onChange={val => setConfig(prev => ({ ...prev, model: val }))}
-                placeholder={availableModels.length > 0 ? '选择模型...' : '请点击右上角拉取...'}
+                placeholder="选择模型..."
                 inputClass={inputClass}
                 cardClass={cardClass}
                 isDarkMode={isDarkMode}
               />
-              {/* Fallback manual input */}
-              {availableModels.length === 0 && !isFetching && (
-                <div className="mt-2 text-right">
-                  <input
-                    type="text"
-                    value={config.model}
-                    onChange={e => setConfig(prev => ({ ...prev, model: e.target.value }))}
-                    placeholder="或手动输入模型 ID"
-                    className={`text-xs px-2 py-1 bg-transparent border-b border-slate-300/30 outline-none text-right w-1/2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}
-                  />
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            ) : (
+              <>
+                <SingleSelectDropdown
+                  options={availableModels.map(m => ({ value: m, label: m }))}
+                  value={config.model}
+                  onChange={val => setConfig(prev => ({ ...prev, model: val }))}
+                  placeholder={availableModels.length > 0 ? '选择模型...' : '请点击右上角拉取...'}
+                  inputClass={inputClass}
+                  cardClass={cardClass}
+                  isDarkMode={isDarkMode}
+                />
+                {/* Fallback manual input */}
+                {availableModels.length === 0 && !isFetching && (
+                  <div className="mt-2 text-right">
+                    <input
+                      type="text"
+                      value={config.model}
+                      onChange={e => setConfig(prev => ({ ...prev, model: e.target.value }))}
+                      placeholder="或手动输入模型 ID"
+                      className={`text-xs px-2 py-1 bg-transparent border-b border-slate-300/30 outline-none text-right w-1/2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* Chunk Size Slider */}
         <div>
