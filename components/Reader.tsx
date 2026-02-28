@@ -5436,6 +5436,8 @@ const Reader: React.FC<ReaderProps> = ({
         onTtsResumeFromSaved={handleTtsResumeFromSaved}
         ttsExportChapterOptions={ttsExportChapterOptions}
         onTtsExportAudiobook={handleTtsExportAudiobook}
+        currentChapterIndex={selectedChapterIndex}
+        currentChapterTitle={currentChapterTitle}
       />
     </div>
   );

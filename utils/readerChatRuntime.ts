@@ -24,6 +24,8 @@ export interface ChatBubble {
   quote?: ChatQuotePayload;
   generationId?: string;
   editedAt?: number;
+  chapterIndex?: number | null;
+  chapterTitle?: string;
 }
 
 export interface ReaderChatBucket {
@@ -322,6 +324,8 @@ const normalizeChatBubble = (value: unknown): ChatBubble | null => {
     quote,
     generationId: typeof source.generationId === 'string' ? source.generationId : undefined,
     editedAt: Number.isFinite(Number(source.editedAt)) ? Number(source.editedAt) : undefined,
+    chapterIndex: typeof source.chapterIndex === 'number' ? source.chapterIndex : (source.chapterIndex === null ? null : undefined),
+    chapterTitle: typeof source.chapterTitle === 'string' ? source.chapterTitle : undefined,
   };
 };
 

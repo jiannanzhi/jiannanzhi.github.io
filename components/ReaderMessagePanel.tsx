@@ -1,6 +1,7 @@
 ﻿import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Check,
+  Download,
   MessagesSquare,
   Pencil,
   Quote,
@@ -39,6 +40,7 @@ import {
   readChatStore,
   saveChatStore,
 } from '../utils/readerChatRuntime';
+import { downloadChatHistory } from '../utils/chatExport';
 import {
   buildCharacterWorldBookSections,
   buildReadingContextSnapshot,
@@ -104,6 +106,8 @@ interface ReaderMessagePanelProps {
     zipFileName: string;
     skippedReasons: string[];
   }>;
+  currentChapterIndex: number | null;
+  currentChapterTitle: string;
 }
 
 interface ContextMenuState {
@@ -693,6 +697,8 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
   onTtsResumeFromSaved,
   ttsExportChapterOptions,
   onTtsExportAudiobook,
+  currentChapterIndex,
+  currentChapterTitle,
 }) => {
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(true);
   const [isAiFabOpening, setIsAiFabOpening] = useState(false);
@@ -2780,7 +2786,11 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
       }
 
       const baseMessages = result.baseMessages;
-      const aiMessages = result.aiMessages;
+      const aiMessages = result.aiMessages.map(msg => ({
+        ...msg,
+        chapterIndex: currentChapterIndex,
+        chapterTitle: currentChapterTitle,
+      }));
       pendingGenerationRef.current = {
         conversationKey: requestConversationKey,
         committedMessages: baseMessages,
@@ -2867,6 +2877,8 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
       sentToAi: false,
       quote: quotePayload,
       promptRecord: buildUserPromptRecord(userRealName, text, now, quotePayload),
+      chapterIndex: currentChapterIndex,
+      chapterTitle: currentChapterTitle,
     };
 
     setMessages((prev) => [...prev, newMessage]);
@@ -3127,7 +3139,7 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
           </div>
 
           <div className="flex flex-col h-[calc(100%-2rem)] min-h-0">
-          <div className="rm-header px-6 pb-2 flex items-center">
+          <div className="rm-header px-6 pb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 min-w-0">
               <div
                 className="rm-avatar w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border-2 border-transparent ios-pressed"
@@ -3138,6 +3150,17 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
                 {characterNickname}
               </span>
             </div>
+            <button
+              onClick={() => activeBook && downloadChatHistory(activeBook.id, activeBook.title)}
+              className={`p-2 rounded-full transition-colors ${
+                isDarkMode
+                  ? 'hover:bg-slate-700 text-slate-400 hover:text-slate-200'
+                  : 'hover:bg-slate-200 text-slate-500 hover:text-slate-700'
+              }`}
+              title="导出聊天记录"
+            >
+              <Download size={18} />
+            </button>
           </div>
 
           <div className="relative flex-1 min-h-0 flex flex-col overflow-hidden">
