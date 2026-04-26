@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
-import { Camera, Check, Trash2, UserCircle, Book, Plus, ArrowLeft } from 'lucide-react';
-import { Character, Persona, ThemeClasses } from './types';
+import React, { useRef, useState } from 'react';
+import { Camera, Check, Trash2, UserCircle, Book, Plus, ArrowLeft, Upload, Loader2 } from 'lucide-react';
+import { Character, Persona, ThemeClasses, WorldBookEntry } from './types';
 import MultiSelectDropdown from './MultiSelectDropdown';
 import ResolvedImage from '../ResolvedImage';
+import { deleteImageByRef, saveImageFile } from '../../utils/imageStorage';
+import {
+  parseSillyTavernCardFile,
+  SILLY_TAVERN_CARD_IMPORT_ACCEPT,
+} from '../../utils/sillyTavernCardImport';
 
 interface CharacterSettingsProps {
   characters: Character[];
   setCharacters: React.Dispatch<React.SetStateAction<Character[]>>;
   personas: Persona[];
+  setWorldBookEntries: React.Dispatch<React.SetStateAction<WorldBookEntry[]>>;
   wbCategories: string[];
+  setWbCategories: React.Dispatch<React.SetStateAction<string[]>>;
   theme: ThemeClasses;
   onBack: () => void;
   onOpenAvatarModal: (id: string, type: 'PERSONA' | 'CHARACTER') => void;
@@ -25,12 +32,16 @@ const CharacterSettings: React.FC<CharacterSettingsProps> = ({
   characters,
   setCharacters,
   personas,
+  setWorldBookEntries,
   wbCategories,
+  setWbCategories,
   theme,
   onBack,
   onOpenAvatarModal
 }) => {
   const [editingCharacterId, setEditingCharacterId] = useState<string | null>(null);
+  const [isImportingCard, setIsImportingCard] = useState(false);
+  const cardImportInputRef = useRef<HTMLInputElement>(null);
   const { containerClass, animationClass, cardClass, activeBorderClass, baseBorderClass, pressedClass, headingClass, inputClass, btnClass, isDarkMode } = theme;
 
   const updateCharacter = (id: string, field: keyof Character, value: any) => {
@@ -53,6 +64,87 @@ const CharacterSettings: React.FC<CharacterSettingsProps> = ({
   const deleteCharacter = (id: string) => {
     setCharacters(prev => prev.filter(c => c.id !== id));
     if (editingCharacterId === id) setEditingCharacterId(null);
+  };
+
+  const createUniqueCategoryName = (baseName: string) => {
+    const cleaned = baseName.trim() || '导入世界书';
+    const existing = new Set(
+      wbCategories
+        .map((item) => item.trim())
+        .filter(Boolean)
+    );
+    if (!existing.has(cleaned)) return cleaned;
+
+    let counter = 2;
+    let candidate = `${cleaned} (${counter})`;
+    while (existing.has(candidate)) {
+      counter += 1;
+      candidate = `${cleaned} (${counter})`;
+    }
+    return candidate;
+  };
+
+  const handleImportCharacterCard = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setIsImportingCard(true);
+    let avatarRef = '';
+    try {
+      const parsed = await parseSillyTavernCardFile(file);
+      const characterId = `char-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+      if (parsed.shouldUseSourceFileAsAvatar) {
+        avatarRef = await saveImageFile(file);
+      }
+
+      let boundWorldBookCategories: string[] = [];
+      if (parsed.worldBookEntries.length > 0) {
+        const categoryName = createUniqueCategoryName(parsed.suggestedWorldBookCategory);
+        boundWorldBookCategories = [categoryName];
+
+        const importedWorldBookEntries: WorldBookEntry[] = parsed.worldBookEntries.map((entry, index) => ({
+          id: `wb-${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${index}`,
+          title: entry.title || `世界书条目 ${index + 1}`,
+          category: categoryName,
+          content: entry.content,
+          insertPosition: entry.insertPosition,
+          boundCharacterIds: [characterId],
+          boundBookIds: [],
+        }));
+
+        setWbCategories((prev) => (prev.includes(categoryName) ? prev : [...prev, categoryName]));
+        setWorldBookEntries((prev) => [...prev, ...importedWorldBookEntries]);
+      }
+
+      setCharacters((prev) => [
+        ...prev,
+        {
+          id: characterId,
+          name: parsed.characterName,
+          nickname: parsed.nickname || parsed.characterName,
+          description: parsed.description,
+          avatar: avatarRef,
+          boundWorldBookCategories,
+        },
+      ]);
+      setEditingCharacterId(characterId);
+
+      alert(
+        `导入成功：${parsed.characterName}\n` +
+          `已导入高级人设字段\n` +
+          `世界书条目：${parsed.worldBookEntries.length} 条`
+      );
+    } catch (error) {
+      if (avatarRef) {
+        await deleteImageByRef(avatarRef).catch(() => undefined);
+      }
+      const message = error instanceof Error ? error.message : '未知错误';
+      alert(`导入失败：${message}`);
+    } finally {
+      setIsImportingCard(false);
+    }
   };
 
   const renderHeader = (title: string, onBack?: () => void) => (
@@ -199,10 +291,30 @@ const CharacterSettings: React.FC<CharacterSettingsProps> = ({
             </div>
           );
         })}
+
+        <button
+          type="button"
+          onClick={() => cardImportInputRef.current?.click()}
+          disabled={isImportingCard}
+          className={`${cardClass} p-4 text-slate-400 flex items-center justify-center gap-2 hover:text-rose-400 transition-colors border-2 border-dashed border-transparent hover:border-rose-200 rounded-2xl disabled:opacity-60 disabled:cursor-not-allowed`}
+        >
+          {isImportingCard ? <Loader2 size={20} className="animate-spin" /> : <Upload size={20} />}
+          <span className="font-medium">{isImportingCard ? '导入中...' : '导入 SillyTavern 角色卡'}</span>
+        </button>
+
         <button onClick={addNewCharacter} className={`${cardClass} p-4 text-slate-400 flex items-center justify-center gap-2 hover:text-rose-400 transition-colors border-2 border-dashed border-transparent hover:border-rose-200 rounded-2xl`}>
           <Plus size={20} />
           <span className="font-medium">新建角色</span>
         </button>
+        <input
+          ref={cardImportInputRef}
+          type="file"
+          className="hidden"
+          accept={SILLY_TAVERN_CARD_IMPORT_ACCEPT}
+          onChange={(event) => {
+            void handleImportCharacterCard(event);
+          }}
+        />
       </div>
     </div>
   );
