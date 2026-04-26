@@ -530,7 +530,9 @@ const Settings: React.FC<SettingsProps> = ({
           characters={characters}
           setCharacters={setCharacters}
           personas={personas}
+          setWorldBookEntries={setWorldBookEntries}
           wbCategories={wbCategories}
+          setWbCategories={setWbCategories}
           theme={theme}
           onBack={() => goBack()}
           onOpenAvatarModal={openAvatarModal}
@@ -982,4 +984,3 @@ const Settings: React.FC<SettingsProps> = ({
 };
 
 export default Settings;
-
