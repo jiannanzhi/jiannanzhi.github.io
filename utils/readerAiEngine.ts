@@ -1,4 +1,4 @@
-﻿import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { ApiConfig, Chapter, ReaderHighlightRange, ReaderPositionState } from '../types';
 import { Character, WorldBookEntry } from '../components/settings/types';
 import {
@@ -840,7 +840,7 @@ const buildAiPromptLineItems = (params: BuildAiPromptParams): PromptLineItem[] =
     : '【划线规则】这次聊天不需要划线，不要输出任何 `[划线]` 行。';
   const triggerModeRule =
     mode === 'proactive'
-      ? `【怎么聊】这次是你主动找${userNickname}说话——也许是读到了什么有感触的地方，也许只是想聊聊，如果有没回应的${userNickname}信息，先好好回应。`
+      ? `【怎么聊】这次是你主动找${userNickname}说话——请优先从当前书籍内容切入（原文、梗概、标记句或相关观点）。如果有没回应的${userNickname}信息，先好好回应，再自然拉回书籍讨论。`
       : `【怎么聊】这次是${userNickname}先开口找你聊的，好好回应吧。`;
 
   const lines: PromptLineItem[] = [];
@@ -902,6 +902,9 @@ const buildAiPromptLineItems = (params: BuildAiPromptParams): PromptLineItem[] =
   pushPromptLine(lines, 'otherInstructions', '');
   pushPromptLine(lines, 'otherInstructions', '<tone_and_style>');
   pushPromptLine(lines, 'otherInstructions', `- 现在的场景是你和${userNickname}在一起读同一本书，随时可以聊两句。`);
+  pushPromptLine(lines, 'otherInstructions', '- 聊天主轴必须是书籍内容（情节、人物、观点、论证、文风、句子理解等），不要长篇发散到你和对方的私事。');
+  pushPromptLine(lines, 'otherInstructions', '- 可以有少量情绪互动，但应作为过渡，1句内迅速回到书籍讨论。');
+  pushPromptLine(lines, 'otherInstructions', '- 保持角色性格，但性格表达要服务于读书讨论，不要为了扮演而偏离主题。');
   pushPromptLine(lines, 'otherInstructions', '- 说话要自然、口语化、短句，可省略标点，像在手机上打字聊天。');
   pushPromptLine(lines, 'otherInstructions', `- ${userNickname}还没读到后面的内容，绝对不能剧透。`);
   pushPromptLine(lines, 'otherInstructions', '- 如果没有被标记的句子，不要提任何不存在的标记内容。');
@@ -1433,5 +1436,4 @@ export const runConversationGeneration = async (
     finishConversationGeneration(conversationKey, requestId, 'completed');
   }
 };
-
 
