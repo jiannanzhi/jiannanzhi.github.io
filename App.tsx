@@ -21,6 +21,7 @@ import {
   DEFAULT_READER_BUBBLE_CSS_PRESETS,
   normalizeReaderBubbleCssPresets,
 } from './utils/readerBubbleCssPresets';
+import { DEFAULT_EXCLUDED_PARAMETERS, normalizeApiConfig, normalizeApiPresetList } from './utils/apiConfig';
 
 interface Notification {
   show: boolean;
@@ -39,7 +40,8 @@ const DEFAULT_API_CONFIG: ApiConfig = {
   provider: 'OPENAI',
   endpoint: 'https://api.openai.com/v1',
   apiKey: '',
-  model: ''
+  model: '',
+  excludedParameters: [...DEFAULT_EXCLUDED_PARAMETERS],
 };
 
 const DEFAULT_PRESETS: ApiPreset[] = [];
@@ -62,7 +64,7 @@ const RAG_LOCAL_WARMUP_MAX_RETRIES = 3;
 const RAG_PRESETS_STORAGE_KEY = 'app_rag_presets';
 const ACTIVE_RAG_PRESET_ID_STORAGE_KEY = 'app_active_rag_preset_id';
 const DEFAULT_RAG_PRESET_ID = '__default_rag_preset__';
-const DEFAULT_READER_MORE_SETTINGS = {
+const DEFAULT_READER_MORE_SETTINGS: AppSettings['readerMore'] = {
   appearance: {
     readingMode: 'scroll' as 'scroll' | 'page',
     readerThemeId: 'beige',
@@ -92,6 +94,7 @@ const DEFAULT_READER_MORE_SETTINGS = {
       endpoint: 'https://api.openai.com/v1',
       apiKey: '',
       model: '',
+      excludedParameters: [...DEFAULT_EXCLUDED_PARAMETERS],
     },
   },
 };
@@ -302,6 +305,10 @@ const normalizeAppSettings = (raw: unknown): AppSettings => {
           typeof summaryApiSource.model === 'string'
             ? summaryApiSource.model
             : DEFAULT_READER_MORE_SETTINGS.feature.summaryApi.model,
+        excludedParameters:
+          'excludedParameters' in summaryApiSource
+            ? normalizeApiConfig(summaryApiSource, DEFAULT_READER_MORE_SETTINGS.feature.summaryApi).excludedParameters
+            : [...DEFAULT_READER_MORE_SETTINGS.feature.summaryApi.excludedParameters],
       },
     },
   };
@@ -695,7 +702,7 @@ const App: React.FC = () => {
   const [apiConfig, setApiConfig] = useState<ApiConfig>(() => {
     try {
       const saved = localStorage.getItem('app_api_config');
-      return saved ? JSON.parse(saved) : DEFAULT_API_CONFIG;
+      return saved ? normalizeApiConfig(JSON.parse(saved), DEFAULT_API_CONFIG) : DEFAULT_API_CONFIG;
     } catch { return DEFAULT_API_CONFIG; }
   });
 
@@ -703,7 +710,7 @@ const App: React.FC = () => {
   const [apiPresets, setApiPresets] = useState<ApiPreset[]>(() => {
     try {
       const saved = localStorage.getItem('app_api_presets');
-      return saved ? JSON.parse(saved) : DEFAULT_PRESETS;
+      return saved ? normalizeApiPresetList<ApiPreset>(JSON.parse(saved), DEFAULT_API_CONFIG) : DEFAULT_PRESETS;
     } catch { return DEFAULT_PRESETS; }
   });
 
@@ -711,7 +718,7 @@ const App: React.FC = () => {
   const [ragPresets, setRagPresets] = useState<RagPreset[]>(() => {
     try {
       const saved = localStorage.getItem(RAG_PRESETS_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      return saved ? normalizeApiPresetList<RagPreset>(JSON.parse(saved), DEFAULT_API_CONFIG) : [];
     } catch { return []; }
   });
   const [activeRagPresetId, setActiveRagPresetId] = useState<string>(() =>
@@ -2564,4 +2571,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-

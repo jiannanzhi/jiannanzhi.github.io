@@ -58,6 +58,11 @@ import {
   DEFAULT_READER_BUBBLE_CSS_PRESETS,
   normalizeReaderBubbleCssPresets,
 } from '../utils/readerBubbleCssPresets';
+import {
+  applyExcludedParametersToPayload,
+  areExcludedParametersEqual,
+  DEFAULT_EXCLUDED_PARAMETERS,
+} from '../utils/apiConfig';
 
 interface ReaderMessagePanelProps {
   isDarkMode: boolean;
@@ -177,6 +182,7 @@ const DEFAULT_READER_MORE_FEATURE: AppSettings['readerMore']['feature'] = {
     endpoint: 'https://api.openai.com/v1',
     apiKey: '',
     model: '',
+    excludedParameters: [...DEFAULT_EXCLUDED_PARAMETERS],
   },
 };
 const normalizeLooseInt = (value: number) => (Number.isFinite(value) ? Math.round(value) : 0);
@@ -536,7 +542,8 @@ const isSameApiConfig = (left: ApiConfig, right: ApiConfig) =>
   left.provider === right.provider &&
   normalizeEndpoint(left.endpoint || '') === normalizeEndpoint(right.endpoint || '') &&
   (left.apiKey || '').trim() === (right.apiKey || '').trim() &&
-  (left.model || '').trim() === (right.model || '').trim();
+  (left.model || '').trim() === (right.model || '').trim() &&
+  areExcludedParametersEqual(left.excludedParameters, right.excludedParameters);
 
 const parseConversationKey = (key: string) => {
   const matched = key.match(/^book:(.+?)::persona:(.+?)::character:(.+)$/);
@@ -638,17 +645,19 @@ const callSummaryModel = async (prompt: string, config: ApiConfig) => {
     );
   }
 
+  const openAiCompatiblePayload = applyExcludedParametersToPayload({
+    model,
+    temperature: 0.45,
+    messages: [{ role: 'user', content: prompt }],
+  }, config);
+
   const response = await fetch(`${endpoint}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      temperature: 0.45,
-      messages: [{ role: 'user', content: prompt }],
-    }),
+    body: JSON.stringify(openAiCompatiblePayload),
   });
   if (!response.ok) throw new Error(`总结请求失败(${response.status})`);
   const data = await response.json();
@@ -871,6 +880,7 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
               endpoint: readerMoreFeature.summaryApi.endpoint,
               apiKey: readerMoreFeature.summaryApi.apiKey,
               model: readerMoreFeature.summaryApi.model,
+              excludedParameters: readerMoreFeature.summaryApi.excludedParameters,
             }
         : apiConfig,
     [
@@ -880,6 +890,7 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
       readerMoreFeature.summaryApi.endpoint,
       readerMoreFeature.summaryApi.apiKey,
       readerMoreFeature.summaryApi.model,
+      readerMoreFeature.summaryApi.excludedParameters,
       apiConfig,
     ]
   );
@@ -3542,4 +3553,3 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
 };
 
 export default ReaderMessagePanel;
-

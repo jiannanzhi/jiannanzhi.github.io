@@ -1,6 +1,7 @@
-import { GoogleGenAI } from '@google/genai';
+﻿import { GoogleGenAI } from '@google/genai';
 import { ApiConfig, Chapter, ReaderHighlightRange, ReaderPositionState } from '../types';
 import { Character, WorldBookEntry } from '../components/settings/types';
+import { applyExcludedParametersToPayload } from './apiConfig';
 import {
   beginConversationGeneration,
   buildCharacterPromptRecord,
@@ -677,17 +678,19 @@ export const callAiModel = async (prompt: string, apiConfig: ApiConfig, signal?:
     return data.content?.[0]?.text || '';
   }
 
+  const openAiCompatiblePayload = applyExcludedParametersToPayload({
+    model,
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0.85,
+  }, apiConfig);
+
   const response = await fetch(`${endpoint}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.85,
-    }),
+    body: JSON.stringify(openAiCompatiblePayload),
     signal,
   });
   if (!response.ok) {
@@ -1436,4 +1439,3 @@ export const runConversationGeneration = async (
     finishConversationGeneration(conversationKey, requestId, 'completed');
   }
 };
-

@@ -8,6 +8,7 @@ import ResolvedImage from './ResolvedImage';
 import { deleteImageByRef, saveImageFile } from '../utils/imageStorage';
 import { getBookContent, getBookTextLength } from '../utils/bookContentStorage';
 import { BOOK_IMPORT_ACCEPT, parseImportedBookFile, SUPPORTED_BOOK_IMPORT_SUFFIXES } from '../utils/bookImportParser';
+import { applyExcludedParametersToPayload } from '../utils/apiConfig';
 
 interface LibraryProps {
   books: Book[];
@@ -1098,19 +1099,21 @@ const Library: React.FC<LibraryProps> = ({
             regexResult = data.content?.[0]?.text || '';
 
         } else {
+            const openAiCompatiblePayload = applyExcludedParametersToPayload({
+              model: apiConfig.model,
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: `用户输入示例: "${currentInput}"` }
+              ],
+            }, apiConfig);
+
             const response = await fetch(`${endpoint}/chat/completions`, {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${apiConfig.apiKey}`,
                 'Content-Type': 'application/json'
               },
-              body: JSON.stringify({
-                model: apiConfig.model,
-                messages: [
-                  { role: 'system', content: systemPrompt },
-                  { role: 'user', content: `用户输入示例: "${currentInput}"` }
-                ]
-              })
+              body: JSON.stringify(openAiCompatiblePayload)
             });
             if (!response.ok) throw new Error(`API Error: ${response.status}`);
             const data = await response.json();
@@ -2452,7 +2455,6 @@ const Library: React.FC<LibraryProps> = ({
 };
 
 export default Library;
-
 
 
 

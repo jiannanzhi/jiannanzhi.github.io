@@ -4,7 +4,6 @@ import {
   Globe, 
   Key, 
   Cpu, 
-  Save, 
   RefreshCw, 
   Plus, 
   Trash2, 
@@ -19,6 +18,13 @@ import {
 import { ApiConfig, ApiPreset, ApiProvider, ThemeClasses } from './types';
 import { RagPreset } from '../../types';
 import ModalPortal from '../ModalPortal';
+import MultiSelectDropdown from './MultiSelectDropdown';
+import {
+  API_EXCLUDED_PARAMETER_OPTIONS,
+  areExcludedParametersEqual,
+  DEFAULT_EXCLUDED_PARAMETERS,
+  normalizeApiConfig,
+} from '../../utils/apiConfig';
 
 interface ApiSettingsProps {
   config: ApiConfig;
@@ -313,6 +319,14 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
     setAvailableModels([]);
   };
 
+  const handleExcludedParametersChange = (values: string[]) => {
+    const normalized = normalizeApiConfig(
+      { ...config, excludedParameters: values },
+      { ...config, excludedParameters: [...DEFAULT_EXCLUDED_PARAMETERS] }
+    );
+    setConfig(normalized);
+  };
+
   const fetchModels = async () => {
     if (!config.apiKey) {
       setErrorModal({ open: true, message: "请先输入 API Key" });
@@ -447,7 +461,7 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
       const newPreset: ApiPreset = {
         id: Date.now().toString(),
         name: presetNameInput,
-        config: { ...config }
+        config: normalizeApiConfig(config, config)
       };
       setPresets([...presets, newPreset]);
     }
@@ -455,7 +469,7 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
   };
 
   const loadPreset = (preset: ApiPreset) => {
-    setConfig({ ...preset.config });
+    setConfig(normalizeApiConfig(preset.config, config));
     const presetCacheKey = buildModelCacheKey(
       preset.config.provider,
       preset.config.endpoint,
@@ -504,7 +518,7 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
       const newPreset: RagPreset = {
         id: Date.now().toString(),
         name: ragPresetNameInput,
-        config: { ...config },
+        config: normalizeApiConfig(config, config),
       };
       setRagPresets(prev => [...prev, newPreset]);
     }
@@ -636,6 +650,24 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
            )}
         </div>
 
+        <div className="z-10 relative">
+           <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2 block">
+              排除参数
+           </label>
+           <MultiSelectDropdown
+              options={API_EXCLUDED_PARAMETER_OPTIONS}
+              selected={config.excludedParameters || []}
+              onChange={handleExcludedParametersChange}
+              placeholder="不排除任何参数"
+              inputClass={inputClass}
+              cardClass={cardClass}
+              isDarkMode={isDarkMode}
+           />
+           <div className="mt-2 text-[11px] text-slate-500 leading-5">
+             OpenAI 兼容接口会自动按这里勾选的项目跳过发送，适合 Pioneer 这类不接受部分采样参数的接口。
+           </div>
+        </div>
+
         {/* Apply Button (Renamed from Save) */}
         <button 
            id="apply-btn"
@@ -666,13 +698,16 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
          ) : (
             <div className="grid grid-cols-1 gap-3">
                {presets.map(preset => {
-                  const isActive = 
-                    preset.config.provider === config.provider && 
+                  const isActive =
+                    preset.config.provider === config.provider &&
+                    normalizeEndpoint(preset.config.endpoint) === normalizeEndpoint(config.endpoint) &&
                     preset.config.apiKey === config.apiKey &&
-                    preset.config.model === config.model;
+                    preset.config.model === config.model &&
+                    areExcludedParametersEqual(preset.config.excludedParameters, config.excludedParameters);
 
                   const providerInfo = PROVIDERS.find(p => p.key === preset.config.provider);
                   const ProviderIcon = providerInfo?.icon || Server;
+                  const excludedParameters = preset.config.excludedParameters || [];
 
                   return (
                      <div
@@ -693,6 +728,11 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
                                  <span>•</span>
                                  <span className="font-mono opacity-70 truncate max-w-[100px]">{preset.config.model || '未指定'}</span>
                               </div>
+                              {excludedParameters.length > 0 && (
+                                <div className="text-[10px] text-slate-500 mt-1 truncate">
+                                  排除: {excludedParameters.join(', ')}
+                                </div>
+                              )}
                            </div>
                         </div>
 

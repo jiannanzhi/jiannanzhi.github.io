@@ -208,12 +208,19 @@ export interface QuizSession {
 }
 
 export type ApiProvider = 'OPENAI' | 'DEEPSEEK' | 'GEMINI' | 'CLAUDE' | 'GROK' | 'CUSTOM';
+export type ApiExcludedParameter =
+  | 'presence_penalty'
+  | 'frequency_penalty'
+  | 'top_p'
+  | 'top_k'
+  | 'temperature';
 
 export interface ApiConfig {
   provider: ApiProvider;
   endpoint: string;
   apiKey: string;
   model: string;
+  excludedParameters?: ApiExcludedParameter[];
 }
 
 export interface ApiPreset {
@@ -319,6 +326,7 @@ export interface ReaderSummaryApiSettings {
   endpoint: string;
   apiKey: string;
   model: string;
+  excludedParameters?: ApiExcludedParameter[];
 }
 
 export interface ReaderMoreFeatureSettings {
