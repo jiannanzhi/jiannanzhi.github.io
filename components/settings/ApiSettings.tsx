@@ -426,7 +426,7 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
       setFetchStatus('ERROR');
       let msg = err.message;
       if (msg === 'Failed to fetch') {
-        msg = "网络请求失败 (CORS Error)。\n通常是因为浏览器阻止了对 API 的直接访问。\n请检查您的网络或使用允许跨域的代理地址。";
+        msg = "网络请求失败 (CORS Error)。\n通常是因为浏览器阻止了对 API 的直接访问。\n如果你在 GitHub Pages 上使用 Pioneer 这类接口，建议改用 Cloudflare Worker 代理，再把 Endpoint 指向 workers.dev 的 /v1 地址。";
       }
       setErrorModal({ open: true, message: msg });
     } finally {
