@@ -15,15 +15,19 @@ import {
   AlertTriangle,
   Zap
 } from 'lucide-react';
-import { ApiConfig, ApiPreset, ApiProvider, ThemeClasses } from './types';
+import { ApiConfig, ApiPreset, ApiProvider, ApiSamplingParameter, ThemeClasses } from './types';
 import { RagPreset } from '../../types';
 import ModalPortal from '../ModalPortal';
 import MultiSelectDropdown from './MultiSelectDropdown';
 import {
+  API_PARAMETER_CONTROL_OPTIONS,
   API_EXCLUDED_PARAMETER_OPTIONS,
+  areApiParameterValuesEqual,
   areExcludedParametersEqual,
   DEFAULT_EXCLUDED_PARAMETERS,
+  getApiParameterValue,
   normalizeApiConfig,
+  summarizeApiParameterValues,
 } from '../../utils/apiConfig';
 
 interface ApiSettingsProps {
@@ -323,6 +327,14 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
     const normalized = normalizeApiConfig(
       { ...config, excludedParameters: values },
       { ...config, excludedParameters: [...DEFAULT_EXCLUDED_PARAMETERS] }
+    );
+    setConfig(normalized);
+  };
+
+  const handleSamplingParameterChange = (key: ApiSamplingParameter, nextValue: string | number) => {
+    const normalized = normalizeApiConfig(
+      { ...config, [key]: Number(nextValue) },
+      config
     );
     setConfig(normalized);
   };
@@ -651,6 +663,52 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
         </div>
 
         <div className="z-10 relative">
+           <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-3 block">
+              采样参数
+           </label>
+           <div className={`${pressedClass} rounded-2xl p-3 flex flex-col gap-3`}>
+             {API_PARAMETER_CONTROL_OPTIONS.map((option) => {
+               const currentValue = getApiParameterValue(config, option.value);
+               const isExcluded = (config.excludedParameters || []).includes(option.value);
+               return (
+                 <div key={option.value} className={`rounded-xl p-3 border ${isDarkMode ? 'border-slate-700/60 bg-slate-900/20' : 'border-slate-200/80 bg-white/60'}`}>
+                   <div className="flex items-center justify-between gap-3">
+                     <div className="min-w-0">
+                       <div className={`text-sm font-bold ${headingClass}`}>{option.label}</div>
+                       <div className="text-[11px] text-slate-500 mt-1">
+                         范围 {option.min} ~ {option.max}，步进 {option.step}
+                         {isExcluded ? ' · 当前已排除发送' : ''}
+                       </div>
+                     </div>
+                     <input
+                       type="number"
+                       min={option.min}
+                       max={option.max}
+                       step={option.step}
+                       value={currentValue}
+                       onChange={(e) => handleSamplingParameterChange(option.value, e.target.value)}
+                       className={`w-24 h-10 px-3 rounded-xl text-sm outline-none text-right ${inputClass}`}
+                     />
+                   </div>
+                   <input
+                     type="range"
+                     min={option.min}
+                     max={option.max}
+                     step={option.step}
+                     value={currentValue}
+                     onChange={(e) => handleSamplingParameterChange(option.value, e.target.value)}
+                     className="w-full mt-3 accent-rose-400"
+                   />
+                 </div>
+               );
+             })}
+           </div>
+           <div className="mt-2 text-[11px] text-slate-500 leading-5">
+             这组值会随 API 预设一起保存。OpenAI 兼容接口会按这里的值发送；如果你在下面把某项加入“排除参数”，那一项就不会发出去。top_k 为 0 时默认也不会发送。
+           </div>
+        </div>
+
+        <div className="z-10 relative">
            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1 mb-2 block">
               排除参数
            </label>
@@ -703,11 +761,13 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
                     normalizeEndpoint(preset.config.endpoint) === normalizeEndpoint(config.endpoint) &&
                     preset.config.apiKey === config.apiKey &&
                     preset.config.model === config.model &&
+                    areApiParameterValuesEqual(preset.config, config) &&
                     areExcludedParametersEqual(preset.config.excludedParameters, config.excludedParameters);
 
                   const providerInfo = PROVIDERS.find(p => p.key === preset.config.provider);
                   const ProviderIcon = providerInfo?.icon || Server;
                   const excludedParameters = preset.config.excludedParameters || [];
+                  const parameterSummary = summarizeApiParameterValues(preset.config);
 
                   return (
                      <div
@@ -727,6 +787,9 @@ const ApiSettings: React.FC<ApiSettingsProps> = ({
                                  <span className="flex-shrink-0">{providerInfo?.label}</span>
                                  <span>•</span>
                                  <span className="font-mono opacity-70 truncate max-w-[100px]">{preset.config.model || '未指定'}</span>
+                              </div>
+                              <div className="text-[10px] text-slate-500 mt-1 truncate">
+                                {parameterSummary}
                               </div>
                               {excludedParameters.length > 0 && (
                                 <div className="text-[10px] text-slate-500 mt-1 truncate">

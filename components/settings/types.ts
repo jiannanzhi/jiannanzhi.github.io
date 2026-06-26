@@ -1,4 +1,4 @@
-import { ApiProvider, ApiConfig, ApiPreset, AppSettings, TtsConfig, TtsPreset } from '../../types';
+import { ApiProvider, ApiConfig, ApiPreset, ApiSamplingParameter, AppSettings, TtsConfig, TtsPreset } from '../../types';
 
 export type SettingsView = 'MAIN' | 'PERSONA' | 'CHARACTER' | 'WORLDBOOK' | 'API' | 'STORAGE' | 'APPEARANCE' | 'TTS';
 
@@ -44,4 +44,4 @@ export interface ThemeClasses {
   isDarkMode: boolean;
 }
 
-export type { ApiProvider, ApiConfig, ApiPreset, AppSettings, TtsConfig, TtsPreset };
+export type { ApiProvider, ApiConfig, ApiPreset, ApiSamplingParameter, AppSettings, TtsConfig, TtsPreset };

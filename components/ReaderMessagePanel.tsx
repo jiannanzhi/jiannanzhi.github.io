@@ -59,8 +59,10 @@ import {
   normalizeReaderBubbleCssPresets,
 } from '../utils/readerBubbleCssPresets';
 import {
-  applyExcludedParametersToPayload,
+  DEFAULT_API_PARAMETER_VALUES,
+  areApiParameterValuesEqual,
   areExcludedParametersEqual,
+  buildOpenAiCompatiblePayload,
   DEFAULT_EXCLUDED_PARAMETERS,
 } from '../utils/apiConfig';
 
@@ -182,6 +184,8 @@ const DEFAULT_READER_MORE_FEATURE: AppSettings['readerMore']['feature'] = {
     endpoint: 'https://api.openai.com/v1',
     apiKey: '',
     model: '',
+    ...DEFAULT_API_PARAMETER_VALUES,
+    temperature: 0.45,
     excludedParameters: [...DEFAULT_EXCLUDED_PARAMETERS],
   },
 };
@@ -543,6 +547,7 @@ const isSameApiConfig = (left: ApiConfig, right: ApiConfig) =>
   normalizeEndpoint(left.endpoint || '') === normalizeEndpoint(right.endpoint || '') &&
   (left.apiKey || '').trim() === (right.apiKey || '').trim() &&
   (left.model || '').trim() === (right.model || '').trim() &&
+  areApiParameterValuesEqual(left, right) &&
   areExcludedParametersEqual(left.excludedParameters, right.excludedParameters);
 
 const parseConversationKey = (key: string) => {
@@ -645,9 +650,8 @@ const callSummaryModel = async (prompt: string, config: ApiConfig) => {
     );
   }
 
-  const openAiCompatiblePayload = applyExcludedParametersToPayload({
+  const openAiCompatiblePayload = buildOpenAiCompatiblePayload({
     model,
-    temperature: 0.45,
     messages: [{ role: 'user', content: prompt }],
   }, config);
 
@@ -880,6 +884,11 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
               endpoint: readerMoreFeature.summaryApi.endpoint,
               apiKey: readerMoreFeature.summaryApi.apiKey,
               model: readerMoreFeature.summaryApi.model,
+              temperature: readerMoreFeature.summaryApi.temperature,
+              top_p: readerMoreFeature.summaryApi.top_p,
+              top_k: readerMoreFeature.summaryApi.top_k,
+              presence_penalty: readerMoreFeature.summaryApi.presence_penalty,
+              frequency_penalty: readerMoreFeature.summaryApi.frequency_penalty,
               excludedParameters: readerMoreFeature.summaryApi.excludedParameters,
             }
         : apiConfig,
@@ -890,6 +899,11 @@ const ReaderMessagePanel: React.FC<ReaderMessagePanelProps> = ({
       readerMoreFeature.summaryApi.endpoint,
       readerMoreFeature.summaryApi.apiKey,
       readerMoreFeature.summaryApi.model,
+      readerMoreFeature.summaryApi.temperature,
+      readerMoreFeature.summaryApi.top_p,
+      readerMoreFeature.summaryApi.top_k,
+      readerMoreFeature.summaryApi.presence_penalty,
+      readerMoreFeature.summaryApi.frequency_penalty,
       readerMoreFeature.summaryApi.excludedParameters,
       apiConfig,
     ]

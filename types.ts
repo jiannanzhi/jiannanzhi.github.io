@@ -214,12 +214,18 @@ export type ApiExcludedParameter =
   | 'top_p'
   | 'top_k'
   | 'temperature';
+export type ApiSamplingParameter = ApiExcludedParameter;
 
 export interface ApiConfig {
   provider: ApiProvider;
   endpoint: string;
   apiKey: string;
   model: string;
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+  presence_penalty?: number;
+  frequency_penalty?: number;
   excludedParameters?: ApiExcludedParameter[];
 }
 
@@ -326,6 +332,11 @@ export interface ReaderSummaryApiSettings {
   endpoint: string;
   apiKey: string;
   model: string;
+  temperature?: number;
+  top_p?: number;
+  top_k?: number;
+  presence_penalty?: number;
+  frequency_penalty?: number;
   excludedParameters?: ApiExcludedParameter[];
 }
 

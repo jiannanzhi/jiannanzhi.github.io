@@ -8,7 +8,7 @@ import ResolvedImage from './ResolvedImage';
 import { deleteImageByRef, saveImageFile } from '../utils/imageStorage';
 import { getBookContent, getBookTextLength } from '../utils/bookContentStorage';
 import { BOOK_IMPORT_ACCEPT, parseImportedBookFile, SUPPORTED_BOOK_IMPORT_SUFFIXES } from '../utils/bookImportParser';
-import { applyExcludedParametersToPayload } from '../utils/apiConfig';
+import { buildOpenAiCompatiblePayload } from '../utils/apiConfig';
 
 interface LibraryProps {
   books: Book[];
@@ -1099,7 +1099,7 @@ const Library: React.FC<LibraryProps> = ({
             regexResult = data.content?.[0]?.text || '';
 
         } else {
-            const openAiCompatiblePayload = applyExcludedParametersToPayload({
+            const openAiCompatiblePayload = buildOpenAiCompatiblePayload({
               model: apiConfig.model,
               messages: [
                 { role: 'system', content: systemPrompt },

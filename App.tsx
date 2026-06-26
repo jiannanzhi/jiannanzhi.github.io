@@ -21,7 +21,12 @@ import {
   DEFAULT_READER_BUBBLE_CSS_PRESETS,
   normalizeReaderBubbleCssPresets,
 } from './utils/readerBubbleCssPresets';
-import { DEFAULT_EXCLUDED_PARAMETERS, normalizeApiConfig, normalizeApiPresetList } from './utils/apiConfig';
+import {
+  DEFAULT_API_PARAMETER_VALUES,
+  DEFAULT_EXCLUDED_PARAMETERS,
+  normalizeApiConfig,
+  normalizeApiPresetList,
+} from './utils/apiConfig';
 
 interface Notification {
   show: boolean;
@@ -41,6 +46,7 @@ const DEFAULT_API_CONFIG: ApiConfig = {
   endpoint: 'https://api.openai.com/v1',
   apiKey: '',
   model: '',
+  ...DEFAULT_API_PARAMETER_VALUES,
   excludedParameters: [...DEFAULT_EXCLUDED_PARAMETERS],
 };
 
@@ -94,6 +100,8 @@ const DEFAULT_READER_MORE_SETTINGS: AppSettings['readerMore'] = {
       endpoint: 'https://api.openai.com/v1',
       apiKey: '',
       model: '',
+      ...DEFAULT_API_PARAMETER_VALUES,
+      temperature: 0.45,
       excludedParameters: [...DEFAULT_EXCLUDED_PARAMETERS],
     },
   },
@@ -305,6 +313,26 @@ const normalizeAppSettings = (raw: unknown): AppSettings => {
           typeof summaryApiSource.model === 'string'
             ? summaryApiSource.model
             : DEFAULT_READER_MORE_SETTINGS.feature.summaryApi.model,
+        temperature:
+          typeof summaryApiSource.temperature === 'number' && Number.isFinite(summaryApiSource.temperature)
+            ? summaryApiSource.temperature
+            : DEFAULT_READER_MORE_SETTINGS.feature.summaryApi.temperature,
+        top_p:
+          typeof summaryApiSource.top_p === 'number' && Number.isFinite(summaryApiSource.top_p)
+            ? summaryApiSource.top_p
+            : DEFAULT_READER_MORE_SETTINGS.feature.summaryApi.top_p,
+        top_k:
+          typeof summaryApiSource.top_k === 'number' && Number.isFinite(summaryApiSource.top_k)
+            ? summaryApiSource.top_k
+            : DEFAULT_READER_MORE_SETTINGS.feature.summaryApi.top_k,
+        presence_penalty:
+          typeof summaryApiSource.presence_penalty === 'number' && Number.isFinite(summaryApiSource.presence_penalty)
+            ? summaryApiSource.presence_penalty
+            : DEFAULT_READER_MORE_SETTINGS.feature.summaryApi.presence_penalty,
+        frequency_penalty:
+          typeof summaryApiSource.frequency_penalty === 'number' && Number.isFinite(summaryApiSource.frequency_penalty)
+            ? summaryApiSource.frequency_penalty
+            : DEFAULT_READER_MORE_SETTINGS.feature.summaryApi.frequency_penalty,
         excludedParameters:
           'excludedParameters' in summaryApiSource
             ? normalizeApiConfig(summaryApiSource, DEFAULT_READER_MORE_SETTINGS.feature.summaryApi).excludedParameters

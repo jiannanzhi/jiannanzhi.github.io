@@ -6,7 +6,7 @@ import ModalPortal from './ModalPortal';
 import ResolvedImage from './ResolvedImage';
 import { ApiConfig, Book } from '../types';
 import { Character, Persona, WorldBookEntry } from './settings/types';
-import { applyExcludedParametersToPayload } from '../utils/apiConfig';
+import { buildOpenAiCompatiblePayload } from '../utils/apiConfig';
 
 type StatsBook = Pick<Book, 'id' | 'title' | 'author' | 'coverUrl' | 'tags' | 'progress' | 'lastReadAt'>;
 
@@ -655,10 +655,9 @@ const Stats: React.FC<StatsProps> = ({
       return data.content?.[0]?.text || '';
     }
 
-    const openAiCompatiblePayload = applyExcludedParametersToPayload({
+    const openAiCompatiblePayload = buildOpenAiCompatiblePayload({
       model,
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.8,
     }, apiConfig);
 
     const response = await fetch(`${endpoint}/chat/completions`, {
