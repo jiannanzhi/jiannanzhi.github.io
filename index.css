@@ -21,6 +21,12 @@ html, body {
   height: 100% !important;
   max-height: 100% !important;
 }
+#root {
+  height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 :root {
         --ios-bg: #F6F2EA;
         --ios-text: #3F3A2F;
