@@ -1,10 +1,10 @@
 {
-  "id": "/READING/",
+  "id": "/",
   "name": "\u9605\u8bfb\u9636\u68af",
   "short_name": "\u9605\u8bfb\u9636\u68af",
   "description": "\u9605\u8bfb\u9636\u68af - \u6c89\u6d78\u5f0f\u9605\u8bfb\u4e0e\u4e92\u52a8",
-  "start_url": "/READING/",
-  "scope": "/READING/",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#F6F2EA",
   "theme_color": "#F6F2EA",
