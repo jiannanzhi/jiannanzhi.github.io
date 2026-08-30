@@ -2,7 +2,12 @@
 
 @tailwind base;
 @tailwind components;
-
+#root {
+  /* 适配 iOS 顶部的安全距离 */
+  padding-top: env(safe-area-inset-top);
+  /* 如果底部也有被黑条遮挡的问题，可以顺便加上这句 */
+  padding-bottom: env(safe-area-inset-bottom);
+}
 :root {
         --ios-bg: #F6F2EA;
         --ios-text: #3F3A2F;
