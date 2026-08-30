@@ -9,16 +9,12 @@ html, body {
 }
 
 #root {
-  /* 1. 适配顶部的灵动岛/刘海 */
+  box-sizing: border-box;
+  height: 100vh; /* 或 100dvh */
   padding-top: env(safe-area-inset-top);
-  /* 2. 适配底部的小白条（重要！） */
   padding-bottom: env(safe-area-inset-bottom);
-  
-  /* 3. 使用 dvh (动态视口高度)，完美贴合手机屏幕 */
-  height: 100dvh; 
-  /* 4. 关键：让 padding 算在总高度里面，防止撑爆屏幕 */
-  box-sizing: border-box; 
 }
+
 
 /* 强制内部的 React 主容器适应我们限制好的新高度 */
 #root > div {
